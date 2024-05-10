@@ -2,6 +2,7 @@ MODE CON COLS=128 LINES=1000
 @ECHO OFF
 setlocal EnableExtensions EnableDelayedExpansion
 
+set "zip=C:\Program Files\7-Zip\7z.exe"
 
 :: Ryujinx Save File Directory
 set "ryujinx_save_file_directory=C:\Users\jgall\OneDrive\Escritorio\ryujinxdata\bis\user\save"
@@ -98,6 +99,7 @@ call :Start
 
     call :TransferToCloud
 
+
     EXIT
     exit /b 0
 
@@ -118,6 +120,37 @@ call :Start
 
 :ZipAllSaveFiles
     for /D %%i in ("%gdrive_save_file_directory%\*") do (
+
+        dir "%%i\*" /A-D /B > nul 2>&1
+        if not errorlevel 1 (
+            :: (YYYY.MM.DD)
+            for /F "tokens=2 delims==" %%a in ('wmic os get localdatetime /value') do (
+                set "dt=%%a"
+                set "date=!dt:~0,4!.!dt:~4,2!.!dt:~6,2!"
+            )
+
+            :: (HH.mm.ss)
+            for /F "tokens=1-3 delims=:.," %%a in ("%TIME%") do (
+                set "time=%%a.%%b.%%c"
+            )
+
+            set "customZipName=Jona-PC - !date! @ !time!.zip"
+
+            "%zip%" a "%%i\!customZipName!" "%%i\*" -x^^!*.zip
+        )
+    )
+
+    for /D /R "%gdrive_save_file_directory%" %%i in (*) do (
+        for %%f in ("%%i\*") do (
+            if not "%%~xf"==".zip" del "%%f"
+        )
+        rd "%%i" 2>nul
+    )
+    exit /b 0
+
+:ZipSaveFiles 
+    dir "%~1\*" /A-D /B > nul 2>&1
+    if not errorlevel 1 (
         :: (YYYY.MM.DD)
         for /F "tokens=2 delims==" %%a in ('wmic os get localdatetime /value') do (
             set "dt=%%a"
@@ -130,43 +163,20 @@ call :Start
         )
 
         set "customZipName=Jona-PC - !date! @ !time!.zip"
+        "%zip%" a "%~1\!customZipName!" "%~1\*" -x^^!*.zip
 
-        Rar.exe a -r -ep1 "%%i\!customZipName!" "%%i\*" -x*.zip
-    )
-
-    for /D /R "%gdrive_save_file_directory%" %%i in (*) do (
-        for %%f in ("%%i\*") do (
-            if not "%%~xf"==".zip" del "%%f"
+        for %%f in ("%~1\*") do (
+            if /I not "%%~xf"==".zip" (
+                del "%%f" /Q
+            )
         )
-        rd "%%i" 2>nul
+
+        for /d %%d in ("%~1\*") do (
+            rd "%%d" /S /Q
+        )
     )
+
     exit /b 0
-
-:ZipSaveFiles 
-    :: (YYYY.MM.DD)
-    for /F "tokens=2 delims==" %%a in ('wmic os get localdatetime /value') do (
-        set "dt=%%a"
-        set "date=!dt:~0,4!.!dt:~4,2!.!dt:~6,2!"
-    )
-
-    :: (HH.mm.ss)
-    for /F "tokens=1-3 delims=:.," %%a in ("%TIME%") do (
-        set "time=%%a.%%b.%%c"
-    )
-
-    set "customZipName=Jona-PC - !date! @ !time!.zip"
-
-    Rar.exe a -r -ep1 "%~1\!customZipName!" "%~1\*" -x*.zip
-
-    for %%f in ("%~1\*") do (
-        if /I not "%%~xf"==".zip" (
-            del "%%f" /Q
-        )
-    )
-
-    for /d %%d in ("%~1\*") do (
-        rd "%%d" /S /Q
-    )
 
 :TransferToCloud
     set "copy_folder=%gdrive_save_file_directory%"
